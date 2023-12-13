@@ -1,0 +1,8 @@
+# local env files
+.env*.local
+
+# ide's
+.idea
+.vscode
+
+.vs
