@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 
+#define BAR 10
+
 using namespace std;
 
 class Song {
@@ -24,7 +26,7 @@ private:
 public:
     Playlist(const string& name) : playlistName(name) {}
 
-    void addSong(const Song& song) {
+    inline void addSong(const Song& song) {
         songs.push_back(song);
     }
 
@@ -79,7 +81,7 @@ protected:
 
 public:
     virtual void playNextSong() = 0;
-    virtual void addToQueue(const string& song) = 0;
+    void addToQueue(const string& song);
     virtual void createPlaylist(const string& playlistName) = 0;
     virtual void addToPlaylist(const string& playlistName, const string& song) = 0;
     void playPlaylist(const string& playlistName);
@@ -89,6 +91,14 @@ class MusicPlayer : public PlaylistManager {
 private:
     sf::Music music;
     vector<Playlist> playlists;
+    float volume;
+
+    void adjustVolume(float delta) {
+        volume += delta;
+        volume = std::max(0.f, std::min(100.f, volume));  // Clamp between 0 and 100
+        music.setVolume(volume);
+        cout << "Volume: " << volume << endl;
+    }
 
     static bool fileExists(const string& name) {
         string basePath = "D:\\Uni\\3rd Sem\\OOPS\\Music-Player\\Music-Player\\songs\\";
@@ -158,11 +168,18 @@ private:
                         // Add the playlist only if it's not empty
                         playlists.push_back(playlist);
                     }
-                    playlist = Playlist("Default");  // Reset for the next playlist
+                    playlist = Playlist("");  // Reset for the next playlist
                 }
                 else {
-                    // Non-empty line represents a song name
-                    playlist.addSong(Song(line, sf::Time::Zero));
+                    // Non-empty line represents either playlist name or a song name
+                    if (playlist.getSongs().empty()) {
+                        // If the playlist has no songs yet, set the playlist name
+                        playlist = Playlist(line);
+                    }
+                    else {
+                        // Otherwise, it's a song name, so add it to the playlist
+                        playlist.addSong(Song(line, sf::Time::Zero));
+                    }
                 }
             }
 
@@ -225,6 +242,35 @@ public:
 
         bool isPlaying = false;
 
+        // Visualizer bars
+        const int visualizerBarCount = BAR;
+        sf::RectangleShape visualizerBars[visualizerBarCount];
+
+        // Initialize visualizer bars
+        const float barWidth = 10.f;
+        const float barSpacing = 5.f;
+        const float windowHeight = window.getSize().y;
+
+        // Calculate the starting position for the visualizer bars
+        float totalWidth = visualizerBarCount * (barWidth + barSpacing) - barSpacing; // Adjusted totalWidth calculation
+        float startX = (window.getSize().x - totalWidth) / 2.f;
+
+
+        // Adjusted height scale for the visualizer bars
+        const float heightScale = 0.2; // Adjust this value as needed
+
+        for (int i = 0; i < visualizerBarCount; ++i) {
+            // Calculate a random height within the specified scale
+            float randomHeight = static_cast<float>(rand() % static_cast<int>(windowHeight * heightScale));
+
+            visualizerBars[i].setSize(sf::Vector2f(barWidth, randomHeight));
+
+            // Calculate the position of each bar within the specified range
+            float xPos = startX + i * (barWidth + barSpacing);
+            visualizerBars[i].setPosition(xPos, (windowHeight - randomHeight) / 2); // Vertically center the bars
+            visualizerBars[i].setFillColor(sf::Color::White);
+        }
+
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
@@ -246,12 +292,62 @@ public:
                         }
                     }
                 }
+                else if (event.type == sf::Event::KeyPressed) {
+                    // Handle keyboard shortcuts
+                    switch (event.key.code) {
+                    case sf::Keyboard::Space:
+                        if (!isPlaying) {
+                            music.play();
+                            isPlaying = true;
+                        }
+                        else {
+                            music.pause();
+                            isPlaying = false;
+                        }
+                        break;
+                    case sf::Keyboard::S:
+                        music.stop();
+                        isPlaying = false;
+                        break;
+                    case sf::Keyboard::Up:
+                        adjustVolume(10);  // Increase volume
+                        break;
+                    case sf::Keyboard::Down:
+                        adjustVolume(-10);  // Decrease volume
+                        break;
+                        // Add more keyboard shortcuts as needed
+                    case sf::Keyboard::Right:
+                        music.setPlayingOffset(music.getPlayingOffset() + sf::seconds(5));
+                        break;
+                    case sf::Keyboard::Left:
+                        music.setPlayingOffset(music.getPlayingOffset() - sf::seconds(5));
+                        break;
+                    case sf::Keyboard::N:
+                        playNextSong();
+                        break;
+                    }
+                    
+                }
+            }
+
+            // Update visualizer bars based on random heights
+            if (isPlaying) {
+                for (int i = 0; i < visualizerBarCount; ++i) {
+                    float randomHeight = static_cast<float>(rand() % 200);  // Adjust the range as needed
+                    visualizerBars[i].setSize(sf::Vector2f(barWidth, randomHeight));
+                    visualizerBars[i].setPosition(i * (barWidth + barSpacing), windowHeight - randomHeight);
+                }
             }
 
             window.clear();
 
             // Draw play/pause button
             window.draw(playPauseButton);
+
+            // Draw visualizer bars
+            for (const auto& bar : visualizerBars) {
+                window.draw(bar);
+            }
 
             window.display();
 
@@ -272,8 +368,30 @@ public:
         return ""; // Return empty string if no matching file is found
     }
 
-    void addToQueue(const string& song) override {
-        q.push(song);
+    void addToQueue(const string& song, bool addToFront){
+        if (addToFront) {
+            // Insert the song at the front of the queue
+            queue<string> temp;
+            temp.push(song);    
+
+            // Move existing items to temp queue
+            while (!q.empty()) {
+                temp.push(q.front());
+                q.pop();
+            }
+
+            // Move items back to the original queue
+            while (!temp.empty()) {
+                q.push(temp.front());
+                temp.pop();
+            }
+        }
+        else {
+            // Add the song to the end of the queue
+            q.push(song);
+        }
+
+        // Save the updated queue to file
         saveQueueToFile();
     }
 
@@ -305,12 +423,44 @@ public:
 
 
     void createPlaylist(const string& playlistName) override {
-        playlists.emplace_back(playlistName);
-        cout << "Playlist \"" << playlistName << "\" created." << endl;
-        savePlaylistsToFile();
+        loadPlaylistsFromFile();
+
+        ifstream file("D:\\Uni\\3rd Sem\\OOPS\\Music-Player\\Music-Player\\Resources\\playlists.txt");
+        if (file.is_open()) {
+            string line;
+            bool foundPlaylist = false;
+
+            // Search for the playlist name in the file
+            while (getline(file, line)) {
+                if (line == playlistName) {
+                    foundPlaylist = true;
+                    break;
+                }
+            }
+
+            // If the playlist is found, add songs to the queue and play them
+            if (!foundPlaylist) {
+                playlists.emplace_back(playlistName);
+                cout << "Playlist \"" << playlistName << "\" created." << endl;
+                savePlaylistsToFile();
+            }
+            else {
+                cerr << "Playlist with same name already exists." << endl;
+            }
+
+            file.close();
+        }
+        else {
+            cerr << "Failed to open playlists file." << endl;
+        }
+        
     }
 
     void addToPlaylist(const string& playlistName, const string& song) override {
+        // Load playlists from file
+        loadPlaylistsFromFile();
+
+        // Check if the playlist already exists
         auto it = find_if(playlists.begin(), playlists.end(), [&](const Playlist& playlist) {
             return playlist.getPlaylistName() == playlistName;
             });
@@ -346,10 +496,7 @@ public:
 
             // If the playlist is found, add songs to the queue and play them
             if (foundPlaylist) {
-                while (!q.empty()) {
-                    q.pop();
-                    saveQueueToFile();
-                }
+                
                 while (getline(file, line)) {
                     if (line.empty()) {
                         // Empty line indicates the end of the playlist
@@ -359,7 +506,7 @@ public:
                     // Split the line at the first blank space to get the song name
                     size_t pos = line.find_first_of(" ");
                     string songName = (pos != string::npos) ? line.substr(0, pos) : line;
-                    addToQueue(songName);
+                    addToQueue(songName,true);
                     saveQueueToFile();
                 }
 
@@ -386,15 +533,18 @@ int main() {
     MusicPlayer player;
 
     while (true) {
-        cout << "Options:" << endl;
-        cout << "1. Add song to queue" << endl;
+        cout << endl;
+        cout << "Music Player:" << endl;
+        cout << "-------------" << endl;
+        cout << "1. Play song " << endl;
         cout << "2. Play next song" << endl;
-        cout << "3. Play song " << endl;
+        cout << "3. Add song to queue" << endl;
         cout << "4. Create playlist" << endl;
         cout << "5. Add song to playlist" << endl;
         cout << "6. Play playlist" << endl;
         cout << "7. Playlist by Sorted Duration" << endl;
         cout << "8. Exit" << endl;
+        cout << "-------------" << endl;
 
         int choice;
         cout << "Enter your choice: ";
@@ -407,7 +557,9 @@ int main() {
             cin >> song;
             song = MusicPlayer::findFileWithExtension(song);
             if (!song.empty()) {
-                player.addToQueue(song);
+                // Add the song to the front of the queue
+                player.addToQueue(song, true);
+                player.playNextSong();  // Play the specific song immediately
             }
             else {
                 cout << "File not found." << endl;
@@ -423,8 +575,7 @@ int main() {
             cin >> song;
             song = MusicPlayer::findFileWithExtension(song);
             if (!song.empty()) {
-                player.addToQueue(song);
-                player.playNextSong();  // Play the specific song immediately
+                player.addToQueue(song, false);
             }
             else {
                 cout << "File not found." << endl;

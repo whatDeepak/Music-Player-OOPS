@@ -1,2 +1,13 @@
 ﻿  musicplayer.cpp
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,52): warning C4244: 'initializing': conversion from 'T' to 'float', possible loss of data
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,52): warning C4244:         with
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,52): warning C4244:         [
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,52): warning C4244:             T=unsigned int
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,52): warning C4244:         ]
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,34): warning C4244: 'initializing': conversion from 'T' to 'const float', possible loss of data
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,34): warning C4244:         with
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,34): warning C4244:         [
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,34): warning C4244:             T=unsigned int
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(252,34): warning C4244:         ]
+D:\Uni\3rd Sem\OOPS\Music-Player\Music-Player\musicplayer.cpp(260,35): warning C4305: 'initializing': truncation from 'double' to 'float'
   Music-Player.vcxproj -> D:\Uni\3rd Sem\OOPS\Music-Player\x64\Debug\Music-Player.exe
